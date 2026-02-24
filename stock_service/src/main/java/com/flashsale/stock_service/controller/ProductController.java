@@ -4,6 +4,7 @@ import com.flashsale.stock_service.entity.Product;
 import com.flashsale.stock_service.repository.ProductRepository;
 import com.flashsale.stock_service.service.ProductService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.*;
 import java.math.BigDecimal;
@@ -37,11 +38,37 @@ public class ProductController {
     }
 
      @PostMapping("/{id}/reduce")
-    public Product reduceStock(@PathVariable Long id, @RequestParam Integer quantity) {
+    public ResponseEntity<?> reduceStock(@PathVariable Long id, @RequestParam Integer quantity) {
+       try {
         productService.reduceStock(id, quantity);
+        Product updatedProduct = repository.findById(id)
+                                .orElseThrow( () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product Not Found"));
 
-        return repository.findById(id)
-                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product Not Found"));
+        return ResponseEntity.ok(updatedProduct);
+       } catch (RuntimeException e) {
+            
+            switch(e.getMessage()) {
+                case "OUT_OF_STOCK":
+                    return ResponseEntity
+                              .status(HttpStatus.BAD_REQUEST)
+                              .body("Out of stock");
+
+                case "HIGH_TRAFFIC": 
+                    return ResponseEntity 
+                              .status(HttpStatus.CONFLICT)
+                              .body("High Traffic. Please Retry");
+
+                case "PRODUCT_NOT_FOUND":
+                    return ResponseEntity
+                              .status(HttpStatus.NOT_FOUND)
+                              .body("Product Not Found.");
+
+                default:
+                    return ResponseEntity
+                              .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                              .body("Unexpected Error");
+            }
+       }
     }
 
 }
