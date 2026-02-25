@@ -6,6 +6,7 @@ import com.flashsale.order_service.repository.OrderRepository;
 import com.flashsale.order_service.service.OrderService;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,8 +27,27 @@ public class OrderController {
     }
 
     @PostMapping
-    public Order createOrder(@RequestParam Long userId, @RequestParam Long productId, @RequestParam Integer quantity) {
-        return orderService.createOrder(userId, productId, quantity);
+    public ResponseEntity<?> createOrder(@RequestParam Long userId, @RequestParam Long productId, @RequestParam Integer quantity) {
+        try {   
+            Order order = orderService.createOrder(userId, productId, quantity);
+            return ResponseEntity.ok(order);
+        } catch (RuntimeException e) {
+               
+            switch (e.getMessage()) {
+                case "OUT_OF_STOCK":
+                    return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body("Out of stock");
+                case "HIGH_TRAFFIC":
+                    return ResponseEntity
+                        .status(HttpStatus.CONFLICT)
+                        .body("High traffic. Please retry.");
+                default:
+                    return ResponseEntity
+                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("Unexpected error");
+            }
+        }
     }
 
 @GetMapping("/{id}")

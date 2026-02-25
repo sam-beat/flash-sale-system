@@ -14,10 +14,6 @@ public class Product {
     private String name;
     private BigDecimal price;
     private Integer stock;
-
-    @Version
-    private Integer version; //important for later
-
     private LocalDateTime createdAt;
 
     @PrePersist
