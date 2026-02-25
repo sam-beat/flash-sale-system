@@ -1,0 +1,111 @@
+📘 Project Notes – High-Concurrency Flash Sale System (Till Day 4 – Before Redis)
+
+1️⃣ Overall Architecture
+✅ Built a Microservices-Based Backend
+Separated system into:
+User Service
+Stock Service
+Order Service
+
+Each service:
+Runs independently
+Has its own database
+Communicates via REST
+Can scale independently
+
+Architecture:
+Client
+  ↓
+Order Service
+  ↓
+Stock Service
+  ↓
+PostgreSQL
+
+2️⃣ Infrastructure Setup
+✅ Docker-Based Environment
+PostgreSQL container
+Redis container (not used yet)
+RabbitMQ container (not used yet)
+
+Benefits:
+Environment isolation
+Easy reproducibility
+Production-like setup
+
+3️⃣ Database Design
+🗄 User Service
+Table: users
+Fields:
+id (PK)
+username (unique)
+balance
+created_at
+
+🗄 Stock Service
+Table: products
+Fields:
+id (PK)
+name
+price
+stock
+created_at
+version (for optimistic locking)
+
+Order Service
+Table: orders
+Fields:
+id (PK)
+user_id
+product_id
+quantity
+order_status (SUCCESS)
+
+4️⃣ REST APIs Built
+📌 User Service
+Create user
+Fetch user
+
+📌 Stock Service
+Create product
+Get product
+Reduce stock
+
+📌 Order Service
+Create order
+Internally calls stock-service
+
+Day 3: 
+The Order Service was designed to communicate with the Stock Service using RestTemplate, ensuring that every order 
+creation request first validated and reduced product stock before persisting the order. This introduced real-world 
+service-to-service dependency handling, where HTTP responses such as 400 (Out of Stock) and 409 (High Traffic) were properly 
+propagated instead of being incorrectly converted into generic 500 errors. Exception handling was refined to ensure accurate 
+distributed error translation using Spring’s RestClientResponseException, which eliminated unexpected failures and made the API 
+behavior production-consistent.
+
+To handle high concurrency, optimistic locking was implemented at the database level using JPA’s @Version annotation 
+in the Product entity. This prevented lost updates and eliminated overselling by ensuring that concurrent updates to 
+the same product row would fail safely if version mismatches occurred. Under load testing (simulating 20 parallel requests 
+with limited stock), the system correctly prevented overselling and maintained data integrity. However, it exposed a 
+key architectural limitation: heavy row-level contention in the database. Even with a retry mechanism (up to three attempts 
+per request), high concurrency led to version conflicts, retry exhaustion, and partial stock utilization. This demonstrated 
+that while optimistic locking ensures correctness, the database becomes a bottleneck under burst traffic conditions.
+
+By this stage, the system had achieved strong consistency guarantees, safe distributed transaction behavior across services, 
+and robust concurrency control using database-level mechanisms. It accurately modeled real-world flash sale challenges, 
+including race conditions, contention management, and distributed error propagation. However, it also highlighted scalability 
+constraints inherent in database-driven stock control, setting the stage for transitioning to an in-memory atomic stock management 
+approach using Redis in the next phase of the architecture.
+
+
+Day 4:
+transitioned stock management from database-driven optimistic locking to Redis-based atomic control to improve scalability 
+under high concurrency. Instead of relying on JPA’s @Version mechanism to prevent overselling, we introduced Redis as an i
+n-memory gatekeeper for stock validation. Using Spring Data Redis and StringRedisTemplate, product stock is now loaded into 
+Redis and decremented atomically using the DECR operation whenever an order request arrives. This ensures that concurrent 
+requests no longer compete at the database row level; Redis, being single-threaded and atomic by design, guarantees that only 
+the available stock count can succeed while excess requests fail instantly. If a decrement results in a negative value, the operation 
+is reverted and an “Out of Stock” response is returned immediately. This architectural shift removes database contention, eliminates 
+retry storms caused by version conflicts, and significantly improves system responsiveness under burst traffic. The database is no longer 
+responsible for concurrency control and instead serves as a persistence layer, preparing the system for the next stage—event-driven 
+asynchronous consistency using message queues.

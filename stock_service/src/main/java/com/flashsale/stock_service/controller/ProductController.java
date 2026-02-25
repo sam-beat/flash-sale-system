@@ -51,7 +51,7 @@ public class ProductController {
                 case "OUT_OF_STOCK":
                     return ResponseEntity
                               .status(HttpStatus.BAD_REQUEST)
-                              .body("Out of stock");
+                              .body("Out of_Stock");
 
                 case "HIGH_TRAFFIC": 
                     return ResponseEntity 
@@ -69,6 +69,12 @@ public class ProductController {
                               .body("Unexpected Error");
             }
        }
+    }
+
+    @PostMapping("/{id}/sync")
+    public String sync(@PathVariable Long id) {
+             productService.loadStockToRedis(id);
+             return "Stock loaded to redis";
     }
 
 }
