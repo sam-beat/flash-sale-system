@@ -29,8 +29,8 @@ public class OrderController {
     @PostMapping
     public ResponseEntity<?> createOrder(@RequestParam Long userId, @RequestParam Long productId, @RequestParam Integer quantity) {
         try {   
-            Order order = orderService.createOrder(userId, productId, quantity);
-            return ResponseEntity.ok(order);
+            String order = orderService.createOrder(userId, productId, quantity);
+            return ResponseEntity.ok("");
         } catch (RuntimeException e) {
                
             switch (e.getMessage()) {

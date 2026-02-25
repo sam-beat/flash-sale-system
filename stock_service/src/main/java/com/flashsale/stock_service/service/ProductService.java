@@ -10,19 +10,25 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import com.flashsale.stock_service.repository.ProductRepository;
+import com.flashsale.stock_service.config.RabbitMQConfig;
 import com.flashsale.stock_service.entity.Product;
+import com.flashsale.stock_service.event.StockReducedEvent;
 
 @Service
 public class ProductService {
     private final ProductRepository repository;
     @Autowired
     private StringRedisTemplate redisTemplate;
+     @Autowired
+    private RabbitTemplate rabbitTemplate;
 
-    public ProductService(ProductRepository repository, StringRedisTemplate redisTemplate) {
+    public ProductService(ProductRepository repository, StringRedisTemplate redisTemplate, RabbitTemplate rabbitTemplate) {
         this.repository = repository;
         this.redisTemplate = redisTemplate;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     public void loadStockToRedis(Long productId) {
@@ -35,7 +41,14 @@ public class ProductService {
     @Transactional
     public void reduceStock(Long productId, Integer quantity) {
 
-        String key = "stock:" + productId;
+        String key = "product:" + productId;
+        String stockStr = redisTemplate.opsForValue().get(key);
+
+        if(stockStr == null) {
+            Product product = repository.findById(productId).orElseThrow();
+            redisTemplate.opsForValue().set(key, product.getStock().toString());
+            stockStr = product.getStock().toString();
+        }
 
         Long remaining = redisTemplate.opsForValue().decrement(key, quantity);
 
@@ -46,9 +59,10 @@ public class ProductService {
         if(remaining < 0) {
             //revert the decrement bcz we don't have enough product to ship the order
             redisTemplate.opsForValue().increment(key, quantity);
-
             throw new RuntimeException("OUT_OF_STOCK");
         }
+
+        rabbitTemplate.convertAndSend(RabbitMQConfig.STOCK_QUEUE, new StockReducedEvent(productId, quantity));
        
     }
     
