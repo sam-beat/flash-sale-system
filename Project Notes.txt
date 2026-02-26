@@ -109,3 +109,14 @@ is reverted and an “Out of Stock” response is returned immediately. This arc
 retry storms caused by version conflicts, and significantly improves system responsiveness under burst traffic. The database is no longer 
 responsible for concurrency control and instead serves as a persistence layer, preparing the system for the next stage—event-driven 
 asynchronous consistency using message queues.
+
+Day 5:
+Tonight, we improved our Flash Sale System a lot and made it more like a real-world production system. We kept our three microservices 
+separate — User Service, Stock Service, and Order Service — each with its own database and responsibility. Instead of using the database 
+to control stock during high traffic, we moved stock handling to Redis, which allows us to reduce stock atomically and prevent overselling 
+even when many requests come at the same time. This made the system faster and reduced pressure on the database. Then, we introduced RabbitMQ 
+so that stock updates are sent as events instead of updating the database immediately. This means the system now works in an event-driven way 
+and updates the database asynchronously. We also decided to follow eventual consistency, where Redis handles real-time stock control and the
+ database gets updated in the background. After testing with multiple concurrent requests, we confirmed that extra orders were rejected 
+ correctly and stock remained accurate. Overall, we moved from a simple CRUD project to a more scalable, high-concurrency microservices 
+ system similar to how real flash sale platforms are designed.
