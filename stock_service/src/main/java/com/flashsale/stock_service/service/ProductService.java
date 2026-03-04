@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import com.flashsale.stock_service.repository.ProductRepository;
@@ -61,8 +62,12 @@ public class ProductService {
             redisTemplate.opsForValue().increment(key, quantity);
             throw new RuntimeException("OUT_OF_STOCK");
         }
-
-        rabbitTemplate.convertAndSend(RabbitMQConfig.STOCK_QUEUE, new StockReducedEvent(productId, quantity));
+        try {
+              rabbitTemplate.convertAndSend(RabbitMQConfig.STOCK_QUEUE, new StockReducedEvent(productId, quantity));
+        } catch (Exception e) {
+                // Handle RabbitMQ-specific error (connection issues, channel errors, etc.)
+                throw new RuntimeException("Failed to send stock reduced event for product: " + productId, e);
+          }
        
     }
     

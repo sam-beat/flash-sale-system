@@ -35,8 +35,12 @@ public class OrderService {
              Void.class);
 
         // 2. Publish Event
-        OrderEvent event = new OrderEvent(userId, productId, quantity);
-        rabbitTemplate.convertAndSend("orderQueue", event);
+        try {
+            OrderEvent event = new OrderEvent(userId, productId, quantity);
+            rabbitTemplate.convertAndSend("orderQueue", event);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         return "Order is being processed ";
 
