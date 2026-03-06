@@ -64,6 +64,7 @@ public class ProductService {
         }
         try {
               rabbitTemplate.convertAndSend(RabbitMQConfig.STOCK_QUEUE, new StockReducedEvent(productId, quantity));
+              System.out.println("Stock reduced event published for product: " + productId + ", quantity: " + quantity);
         } catch (Exception e) {
                 // Handle RabbitMQ-specific error (connection issues, channel errors, etc.)
                 throw new RuntimeException("Failed to send stock reduced event for product: " + productId, e);

@@ -38,7 +38,9 @@ public class OrderService {
         try {
             OrderEvent event = new OrderEvent(userId, productId, quantity);
             rabbitTemplate.convertAndSend("orderQueue", event);
+            System.out.println("Order event published: " + event);
         } catch (Exception e) {
+            System.out.println("Failed to publish order event: " + e.getMessage());
             e.printStackTrace();
         }
 
